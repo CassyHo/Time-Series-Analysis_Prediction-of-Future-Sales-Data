@@ -1,0 +1,99 @@
+---
+title: "Motor"
+author: "CHU-CHING HO"
+date: "12/7/2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Motor Vehicle
+
+
+```{r}
+library(TSA)
+Motor<-read.csv("Motor_Vehicle.csv",head=TRUE,stringsAsFactors=FALSE)
+Motor<-ts(Motor$Value, frequency=12, start=c(2000,1))
+ts.plot(Motor,main="2000-2017 Motor Vehicle Sales")
+
+
+ts.plot(diff(Motor),main="2000-2017 Motor Vehicle Sales of 1st difference")
+acf(diff(Motor),main="ACF of Motor Vehicle Sales")
+pacf(diff(Motor),main="PACF of Motor Vehicle Sales")
+y<-as.matrix(diff(Motor))
+eacf(y)
+
+```
+
+```{r}
+motor_18<-read.csv("Motor_Vehicle_18.csv",head=TRUE)
+motor_18<-as.numeric(motor_18[,2])
+motor_18<-ts(motor_18, frequency=12, start=c(2000,1))
+r<-arima(x = Motor, order = c(0,1,1 ))
+pred<-predict(r)
+r.pr<-predict(r, n.ahead = 10)
+par(mfcol=c(1,2))
+ts.plot(motor_18,main="Motor Vehicle sales of 2000-2018", col=1:2)
+ts.plot(Motor,r.pr$pred,main="Motor Vehicle sales of 2000-2017", col=1:2)
+lines(r.pr$pred + r.pr$se, col=4, lty=2)
+lines(r.pr$pred - r.pr$se, col=4, lty=2)
+
+```
+
+```{r}
+mx=40
+acf(diff(Motor), lag.max=mx, xaxt="n", xlab="Lag (months)", main="ACF of Sales of Motor Vehicle")
+axis(1, at=0:mx/12, labels=0:mx)
+pacf(diff(Motor))
+eacf(diff(Motor))
+```
+We can see that every six months there is a spike in the ACF. The spikes are slowly decreasing every 12 months. That behavior points at a seasonal nonstationarity. Hence, we can try to remove this seasonal nonstationarity by considering a 12-months seasonal difference of order D=1
+
+```{r}
+ddlx = diff(diff(Motor), 12)
+plot.ts(ddlx, main="")
+```
+
+To inspect seasonal nonstationarity, I could have also inspected the two following plots
+The month plot(top) indicates seasonal nonstationarity. After considering a 12-months seasonal difference of order D=1, the month plot(bottom) indicate that the nonstationarity is removed.
+
+```{r}
+par(mfrow=c(2,1))
+monthplot(diff(Motor)); 
+monthplot(ddlx);
+
+```
+Let’s consider the ACF and PACF of Sales of Motor Vehicle series after 12-months seasonal difference of order D=1
+
+```{r}
+library(astsa)
+acf2(ddlx,50,main="Sales of Motor Vehicle of 1st difference after 12-months seasonal difference of order 1")
+```
+The above plot have reached “stationarity” of the series, we look first at the seasonal component and then at the non-seasonal component:
+
+For seasonal component:
+
+At the seasons, the ACF is cutting off at lag 1×s, where s=12.
+. This suggests that we have a seasonal MA (ARMA(P=0,Q=1)12) for the differenced series ((ARIMA(P=0,D=1,Q=1)12))
+
+For non-seasonal component: 
+
+I try fitting a ARIMA(1,1,1)×(0,1,1)12.
+```{r}
+library(astsa)
+sa=sarima(Motor,0,1,1, 0,1,1,12, details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+sa
+```
+
+I forecast the Sales of Motor Vehicle data for 2018.
+```{r}
+sarima.for(Motor, 12, 0,1,1, 0,1,1,12)
+
+```
+
