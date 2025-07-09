@@ -1,0 +1,50 @@
+---
+title: "Manufacture"
+author: "CHU-CHING HO"
+date: "12/5/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(TSA)
+Manufacture<-read.csv("Manufacture.csv",head=TRUE,stringsAsFactors=FALSE)
+
+Manufacture<-ts(Manufacture$Value, frequency=12, start=c(2000,1))
+ts.plot(Manufacture,main="Manufacture's Shipment, Inventory and Orders")
+acf(Manufacture,main="ACF of Manufacture's Shipment, Inventory and Orders")
+pacf(Manufacture)
+y<-as.matrix(Manufacture)
+eacf(y)
+```
+
+```{r}
+diff_Manufacture<-diff(Manufacture)
+ts.plot(diff_Manufacture,main="Manufacturer's")
+acf(diff_Manufacture)
+pacf(diff_Manufacture)
+eacf(diff_Manufacture)
+```
+```{r}
+library(astsa)
+sa=sarima(Manufacture,1,1,2, details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+```
+
+```{r}
+library(astsa)
+sa=sarima(diff_Manufacture,1,0,2, details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+```
+
+```{r}
+fit = lm(Manufacture~time(Manufacture), na.action=NULL) # regress globtemp on time
+plot(resid(fit), type="o", main="Residuals")
+acf(resid(fit), 48, main="detrended")
+
+```
