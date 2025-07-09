@@ -1,0 +1,109 @@
+---
+title: "STAT245_Final_Computer"
+author: "CHU-CHING HO"
+date: "12/5/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Advanced monthly manufacturer's shipment, inventory and orders
+### Computer
+
+```{r}
+library(TSA)
+Computer<-read.csv("Computer.csv",head=TRUE,stringsAsFactors=FALSE)
+
+Cvalue<-ts(Computer$Value, frequency=12, start=c(2000,1))
+ts.plot(Cvalue,main="monthly manufacturer's shipment, inventory and orders of Computers and electronic products")
+acf(Cvalue)
+pacf(Cvalue)
+y<-as.matrix(Cvalue)
+eacf(y)
+```
+
+```{r}
+diff_Computer<-diff(Cvalue)
+ts.plot(diff_Computer,main="Manufacturer's Shipment, Inventory and Orders of Computers and Electronic products of first difference")
+acf(diff_Computer)
+pacf(diff_Computer)
+eacf(diff_Computer)
+```
+
+```{r}
+library(astsa)
+sa=sarima(diff_Computer,1,0,3, details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+```
+
+
+```{r}
+dlc<-diff(log(Cvalue))
+ts.plot(diff(log(Cvalue)))
+acf(dlc)
+pacf(dlc)
+eacf(dlc)
+```
+
+```{r}
+library(astsa)
+sa=sarima(dlc,0,0,3 , details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+```
+
+```{r}
+fit = lm(Cvalue~time(Cvalue), na.action=NULL) # regress globtemp on time
+plot(resid(fit), type="o", main="Residuals")
+acf(resid(fit), 48, main="detrended")
+
+```
+
+
+
+
+
+```{r}
+library(TSA)
+Computer_18<-read.csv("computer_18.csv",head=TRUE)
+Computer_18<-Computer_18[,2]
+Computer_18<-ts(Computer_18, frequency=12, start=c(2000,1))
+
+ts.plot(Computer_18,main="monthly manufacturer's shipment, inventory and orders of Computers and electronic products")
+```
+
+```{r}
+
+c<-arima(x = Cvalue, order = c(1, 1, 3))
+pred<-predict(c)
+c.pr<-predict(c, n.ahead = 10)
+par(mfcol=c(2,1))
+ts.plot(Computer_18,main="monthly manufacturer's shipment, inventory and orders of Computers", col=1:2)
+ts.plot(Cvalue,c.pr$pred,main="monthly manufacturer's shipment, inventory and orders of Computers", col=1:2)
+lines(c.pr$pred + c.pr$se, col=4, lty=2)
+lines(c.pr$pred - c.pr$se, col=4, lty=2)
+
+```
+
+```{r}
+print("True value of the data")
+Computer_18
+print("Predicted value of the data for January 2018- December 2018")
+c.pr$pred
+print("lower 95% Prediction Interval:")
+print(c.pr$pred - c.pr$se)
+print("upper CI Prediction Interval:")
+print(c.pr$pred + c.pr$se)
+```
+
+
+
+```{r}
+sa=sarima(Computer,2,1,0 , details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+```
+
