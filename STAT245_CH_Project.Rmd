@@ -1,0 +1,206 @@
+---
+title: "STAT245_CH_Project"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### 
+I use three time series: one is Retail Trade and Food Services, another is monthly manufacturer's shipment, inventory and orders, the other is 
+
+```{r}
+library(TSA)
+retail<-read.csv("retail.csv",head=TRUE)
+retail<-as.numeric(retail[,2])
+retail<-ts(retail, frequency=12, start=c(2000,1))
+ts.plot(retail,main="Sales of Retail Trade and Food Services")
+par((mfrow=c(2,1)))
+acf(retail)
+pacf(retail,main="pacf of Sales of Retail ")
+y<-as.matrix(retail)
+eacf(y)
+
+```
+
+```{r}
+diff_retail<-diff(retail)
+ts.plot(diff_retail,main="Retail Trade and Food Services of first difference")
+acf(diff_retail)
+pacf(diff_retail)
+eacf(diff_retail)
+```
+
+
+
+```{r}
+mx=40
+acf(retail, lag.max=mx, xaxt="n", xlab="Lag (months)")
+axis(1, at=0:mx/12, labels=0:mx)
+```
+The ACF of a time series with a trend component is characterized by slow decay.
+
+
+```{r}
+fit = lm(retail~time(retail), na.action=NULL) # regress retail on time
+fit
+plot(resid(fit), type="o", main="Residuals")
+acf(resid(fit), 48, main="detrended")
+
+```
+
+Alternatively, we can take the first difference of the retail series. This produces different results than removing trend by detrending via regression.
+
+```{r}
+plot(diff(retail), type="o")
+acf(diff(retail), 48)
+
+```
+
+By plotting the ACF of the differenced time series, it appears that the differenced process shows minimal autocorrelation.
+We can estimate the drift by computing
+
+```{r}
+mean(diff(retail))
+```
+```{r}
+sa=sarima(diff(retail),0,0,0 , details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+sa$fit
+```
+
+```{r}
+sa=sarima(diff(retail),1,0,0 , details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+sa$fit
+
+```
+
+```{r}
+sa=sarima(retail,0,1,0 , details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+
+```
+
+
+```{r}
+sa=sarima(retail,0,1,1 , details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+sa$fit
+
+```
+```{r}
+sa=sarima(diff(retail),0,0,1 , details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+sa$fit
+
+```
+The	Box-Ljung test leads to the rejection of the null hypothesis of the process being White noise.
+
+```{r}
+library(astsa)
+sa=sarima(retail,1,0,0 , details="TRUE")
+acf(sa$fit$residuals)
+Box.test(sa$fit$residuals, lag = 5, type = "Ljung-Box")
+
+```
+The Box-Ljung test failed to reject the null hypothesis of white noise, which means that the model is a good fit.
+
+```{r}
+retail_18<-read.csv("retail_18.csv",head=TRUE)
+retail_18<-as.numeric(retail_18[,2])
+retail_18<-ts(retail, frequency=12, start=c(2000,1))
+r<-arima(x = retail, order = c(0,1,1 ))
+pred<-predict(r)
+r.pr<-predict(r, n.ahead = 10)
+par(mfcol=c(1,2))
+ts.plot(retail_18,main="retail sales of 2000-2018", col=1:2)
+ts.plot(retail,r.pr$pred,main="retail sales of 2000-2017", col=1:2)
+lines(r.pr$pred + r.pr$se, col=4, lty=2)
+lines(r.pr$pred - r.pr$se, col=4, lty=2)
+
+```
+
+
+
+
+```{r}
+Motor<-read.csv("Motor_Vehicle.csv",head=TRUE,stringsAsFactors=FALSE)
+Motor<-ts(Motor$Value, frequency=12, start=c(2000,1))
+ts.plot(Motor,main="monthly manufacturer's shipment, inventory and orders of Computers and electronic products")
+ts.plot(diff(Motor))
+```
+
+```{r}
+library(forecast) ## notice the library I am using
+diff_retail=diff(retail)
+diff_motor=diff(Motor)
+dta = cbind(diff_Manufacture, diff_retail,diff_motor)
+Acf(dta) #notice the capital
+```
+
+```{r}
+library(forecast) ## notice the library I am using
+
+library(vars)
+library(fGarch)
+source("SDAFE2.R")
+xdata = matrix(cbind(diff_Manufacture, diff(retail),diff(Motor)), ncol=3) # strip ts attributes
+VARselect(xdata, lag.max=10, type="both")
+
+summary(fit <- VAR(xdata, p=8, type="const"))
+Acf(resid(fit), 52)
+
+mLjungBox(xdata, lag = 5)
+```
+```{r}
+sarima.for(Manufacture, 12, 0,1,1)
+sarima.for(retail, 12, 0,1,1)
+
+```
+
+
+Note that from the VARselect function, BIC picks the order p = 2 model while AIC, Hannan-Quinn and FPE pick an order p = 3 model.
+
+To examine the residuals, I plot the cross-correlations of the residuals and examine the multivariate Ljung Box plot.
+
+The cross-correlations of the residuals shows the ACFs of the individual residual series along the diagonal. The off diagonals display the CCFs between pairs of residual series.
+
+We notice that most of the correlations in the residual series are negligible, however, the zero-order correlation of retail data with manufacture residuals is about 0.37.
+This means that the AR model is not capturing the concurrent effect of retail(y2) on manufacture(y1).
+
+The zero-order correlation of manufacture data with retail residuals is about 0.37. The zero-order correlation of manufacture data with motor residuals is about 0.43.
+This means that the AR model is not capturing the concurrent effect of motor(y3) and manufacture(y1) on retail(y2).
+
+The zero-order correlation of retail data with motor residuals is about 0.43.
+This means that the AR model is not capturing the concurrent effect of retail(y2) on motor(y3).
+
+
+From the multivariate Ljung-box test, the null hypothesis of white noise is rejected. We conclude that the model is not a good fit.
+
+
+```{r}
+fit.pr = predict(fit, n.ahead = 24, ci = 0.95)
+fanchart(fit.pr)
+
+```
+
+```{r}
+ccf(diff_retail,diff(Manufacture),lwd=3,  ylab="CCF",
+    main="diff(retail) and diff(manufacture)")
+```
+
+```{r}
+VARMA(xdata, p = 0, q = 0, include.mean = T, 
+    fixed = NULL, beta=NULL, sebeta=NULL, 
+    prelim = F, details = F, thres = 2)
+```
+
